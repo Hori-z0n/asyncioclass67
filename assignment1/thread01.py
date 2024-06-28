@@ -1,5 +1,4 @@
 # running a function in another thread
-# running a function in another thread
 from time import sleep, ctime
 from threading import Thread
 
