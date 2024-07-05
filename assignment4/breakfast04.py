@@ -18,6 +18,7 @@ async def fry_eggs():
 
 async def main():
     start = time()
+    # way using gather function(it work to)
     await asyncio.gather(make_coffee(), fry_eggs())
     print(f"breakfast is ready in {time()-start} min")
 
