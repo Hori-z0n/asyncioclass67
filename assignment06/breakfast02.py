@@ -41,7 +41,7 @@ async def FryBeacon():
     print(f"{time.ctime()} - Begin fry bacon...")
     await asyncio.sleep(2)
     print(f"{time.ctime()} - Finish fry bacon...")
-    print(f"{time.ctime()} - >>>>>>>> Fry eggs are ready...")
+    print(f"{time.ctime()} - >>>>>>>> Fry beacon is ready...")
     return Bacon()
 
 async def ToastBread(slices):
