@@ -2,7 +2,7 @@ import time
 import asyncio
 from asyncio import Queue
 from random import randrange
-
+import math
 # we first implement the Customer and Product classes, 
 # representing customers and products that need to be checked out. 
 # The Product class has a checkout_time attribute, 
@@ -30,24 +30,30 @@ class Customer:
 # we use queue.task_done() to tell the queue that the data has been successfully processed.
 
 async def checkout_customer(queue: Queue, cashier_number: int):
+    total_start_time = time.perf_counter()
+    cashier_take = {"id":cashier_number, "time":0, "customer":0}
     while not queue.empty():
         customer: Customer = await queue.get()
         customer_start_time = time.perf_counter()
         print(f"the Cashier_{cashier_number} "
               f"will checkout Customer_{customer.customer_id} ")
+        cashier_take.update({'id': cashier_number})
+        cashier_take['customer'] += 1
         for product in customer.products:
-            start_time = time.perf_counter()
+            # start_time = time.perf_counter()
             print(f"The Cashier_{cashier_number}"
                   f"will checkout Customer_{customer.customer_id}'s "
                   f"Product_{product.product_name} "
-                  f"in {product.checkout_time} secs "
-                  f"Total time is {time.perf_counter() - start_time} secs")
+                  f"in {product.checkout_time} secs ")
+                #   f"Total time is {time.perf_counter() - start_time} secs")
             await asyncio.sleep(product.checkout_time)
         print(f"The Cahier_{cashier_number} "
               f"finish checkout Customer_{customer.customer_id} "
               f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs")
         
         queue.task_done()
+    cashier_take['time'] = time.perf_counter() - total_start_time
+    return cashier_take
 
 
 # we implement the generate_customer method as a factory method for producing customers.
@@ -80,25 +86,33 @@ async def customer_generation(queue: Queue, customers: int):
 # Finally, we use the main method to initialize the queue, 
 # producer, and consumer, and start all concurrent tasks.
 async def main():
-    customer_queue = Queue(5)
+    customer_queue = Queue(3)
     customer_start_time = time.perf_counter()
-    customer_producer = asyncio.create_task(customer_generation(customer_queue, 20))
+    customer_producer = asyncio.create_task(customer_generation(customer_queue, 10))
     cashiers = [checkout_customer(customer_queue, i) for i in range(5)]
-    await asyncio.gather(customer_producer, *cashiers)
+    result = await asyncio.gather(customer_producer, *cashiers)
     print(f"The supermarket process finished "
           f"{customer_producer.result()} customers "
           f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs")
     
+    for cashier in result[1:]:
+        if cashier:
+            print(f"The cashier {cashier}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 
 
-# +--------|------------|-------------|-----------------------|-------------------------    
-# Queue	   | Customer   | Cashier	  |  Time each Customer	  |  Time for all Customers
-# 2	       | 2	        | 2		      |         2.02          |          2.02
-# 2	       | 3	        | 2		      |         2.03          |          2.04                                     		
-# 2	       | 4	        | 2		      |         2.03          |          4.06
-# 2	       | 10	        | 3		      |         2.02          |          10.15 
-# 5	       | 10	        | 4			  |         2.05          |          6.12      
-# 5	       | 20			| x           |         2.05          |  >= 8 s  8.15
-# +--------|------------|-------------|-----------------------|-------------------------    
+# +--------|------------|------------|-------------------------------------------------------------------------------|-------|
+# Customer |Queue	    | Cashier	 |                             Customer / Time by Cashier                        |Total  |
+# ---------|------------|------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+#          |	        |	         |   C   |   1   |   C   |   2   |   C   |   3   |   C   |   4   |   C   |   5   |       |
+# 	       |	        |	         |-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+# 2	       | 2	        | 2		     |   1   |  2.0  |   1   |  2.0  |       |       |       |       |       |       |2.01   |
+# 3	       | 2	        | 2		     |   2   |  4.0  |   1   |  2.0  |       |       |       |       |       |       |4.01   |
+# 4	       | 2	        | 2	         |   2   |  4.0  |   2   |  4.0  |       |       |       |       |       |       |4.01   |
+# 5	       | 5	        | 5		     |   1   |  2.0  |   1   |  2.0  |   1   |  2.0  |   1   |  2.0  |   1   |  2.0  |2.01   |
+# 10       | 3	        | 3		     |   4   |  8.0  |   3   |  6.0  |   3   |  6.0  |       |       |       |       |8.03   |
+# 10       | 3			| 5          |   4   |  8.0  |   3   |  6.0  |   3   |  6.0  |       |       |       |       |8.02   |
+# 20       | 5			| 5          |   4   |  8.0  |   4   |  6.0  |   4   |  8.0  |   4   |  8.0  |   4   |  8.0  |8.02   |
+# +--------|------------|------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|    
