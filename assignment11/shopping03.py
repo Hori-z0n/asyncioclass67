@@ -39,15 +39,21 @@ async def checkout_customer(queue: Queue, cashier_number: int):
         cashier_take.update({'id': cashier_number})
         cashier_take['customer'] += 1
         for product in customer.products:
-            print(f"The Cashier_{cashier_number} "
+            if cashier_number == 2:
+                print(f"The Cashier_{cashier_number} "
+                  f"will checkout Customer_{customer.customer_id}'s "
+                  f"Product_{product.product_name}"
+                  f"in 0.1 secs ")
+                await asyncio.sleep(0.1)
+            else:
+                print(f"The Cashier_{cashier_number} "
                   f"will checkout Customer_{customer.customer_id}'s "
                   f"Product_{product.product_name}"
                   f"in {product.checkout_time + (0.1*cashier_number)} secs ")
-            await asyncio.sleep(product.checkout_time + (0.1*cashier_number))
+                await asyncio.sleep((product.checkout_time + (0.1*cashier_number)))
         print(f"The Cahier_{cashier_number} "
               f"finish checkout Customer_{customer.customer_id} "
               f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs ")
-        
         queue.task_done()
     cashier_take['time'] = time.perf_counter() - total_start_time
     return cashier_take
@@ -74,7 +80,7 @@ async def customer_generation(queue: Queue, customers: int):
         for customer in customers:
             print(f"Waiting to put Customer_{customer.customer_id} in line.... ")
             await queue.put(customer)
-            print(f"Customer_{customer.customer_id} put in line...")
+            print(f"Customer_{customer.customer_id} put in line... ")
         customer_count = customer_count + len(customers)
         await asyncio.sleep(.001)
         return customer_count
@@ -112,7 +118,7 @@ if __name__ == "__main__":
 # 2	       | 2	        | 2		     |   1   |  2.0  |   1   |  2.0  |       |       |       |       |       |       |2.01   |
 # 3	       | 2	        | 2		     |   2   |  4.0  |   1   |  2.4  |       |       |       |       |       |       |4.01   |
 # 4	       | 2	        | 2	         |   2   |  4.0  |   2   |  4.8  |       |       |       |       |       |       |4.81   |
-# 5	       | 5	        | 5		     |   1   |  2.0  |   1   |  2.4  |   1   |  0.4  |   1   |  2.0  |   1   |  3.6  |3.61   |
+# 5	       | 5	        | 5		     |   1   |  2.0  |   1   |  2.4  |   1   |  0.4  |   1   |  3.2  |   1   |  3.6  |3.61   |
 # 10       | 5	        | 5		     |   2   |  4.0  |   1   |  2.4  |   5   |  2.0  |   1   |  3.2  |   1   |  3.6  |4.01   |
 # 10       | 3			| 5          |   2   |  4.0  |   2   |  4.8  |   6   |  2.4  |       |       |       |       |4.81   |
 # 10       | 10			| 5          |   2   |  4.0  |   1   |  2.4  |   5   |  2.0  |   1   |  3.2  |   1   |  3.6  |4.01   |
