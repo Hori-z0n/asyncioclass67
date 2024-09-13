@@ -49,12 +49,13 @@ async def checkout_customer(queue: Queue, cashier_number: int):
                   f"Product_{product.product_name} "
                   f"in {product.checkout_time} secs ")
             await asyncio.sleep(product.checkout_time)
+            total_time += product.checkout_time
         print(f"The Cahier_{cashier_number} "
               f"finish checkout Customer_{customer.customer_id} "
               f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs")
         
         queue.task_done()
-    total_time = round(time.perf_counter() - total_start_time)
+    # total_time = time.perf_counter() - total_start_time
     return customer_id, total_time, total_customer
 
 
