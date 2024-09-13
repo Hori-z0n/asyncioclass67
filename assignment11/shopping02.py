@@ -39,6 +39,7 @@ async def checkout_customer(queue: Queue, cashier_number: int):
         customer_start_time = time.perf_counter()
         print(f"the Cashier_{cashier_number} "
               f"will checkout Customer_{customer.customer_id} ")
+        await asyncio.sleep(.001)
         customer_id = cashier_number
         total_customer += 1
         print(f"customer {customer_id} get: {total_customer}")
@@ -81,7 +82,7 @@ async def customer_generation(queue: Queue, customers: int):
             await queue.put(customer)
             print("Customer put in line...")
         customer_count = customer_count + len(customers)
-        await asyncio.sleep(.001)
+        # await asyncio.sleep(.001)
         return customer_count
 
 # Finally, we use the main method to initialize the queue, 
