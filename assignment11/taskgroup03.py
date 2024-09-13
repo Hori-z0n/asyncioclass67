@@ -29,22 +29,36 @@ class Customer:
 # After finishing processing the data, 
 # we use queue.task_done() to tell the queue that the data has been successfully processed.
 async def checkout_customer(queue: Queue, cashier_number: int):
+    total_start_time = time.perf_counter()
+    cashier_take = {"id":cashier_number, "time":0, "customer":0}
     while not queue.empty():
         customer: Customer = await queue.get()
         customer_start_time = time.perf_counter()
         print(f"the Cashier_{cashier_number}"
-              f"will checkout Customer_{customer.customer_id}")
+              f"will checkout Customer_{customer.customer_id} ")
+        cashier_take.update({'id': cashier_number})
+        cashier_take['customer'] += 1
         for product in customer.products:
-            print(f"The Cashier_{cashier_number}"
-                  f"will checkout Customer_{customer.customer_id}'s"
+            if cashier_number == 2:
+                print(f"The Cashier_{cashier_number} "
+                  f"will checkout Customer_{customer.customer_id}'s "
                   f"Product_{product.product_name}"
-                  f"in {product.checkout_time} secs")
-            await asyncio.sleep(product.checkout_time)
-        print(f"The Cahier_{cashier_number}"
-              f"finish checkout Customer_{customer.customer_id}"
-              f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs")
-        
+                  f"in 0.1 secs ")
+                await asyncio.sleep(0.1)
+                cashier_take['time'] += 0.1
+            else:
+                print(f"The Cashier_{cashier_number} "
+                  f"will checkout Customer_{customer.customer_id}'s "
+                  f"Product_{product.product_name}"
+                  f"in {product.checkout_time + (0.1*cashier_number)} secs ")
+                await asyncio.sleep((product.checkout_time + (0.1*cashier_number)))
+                cashier_take['time'] += product.checkout_time + (0.1*cashier_number)
+        print(f"The Cahier_{cashier_number} "
+              f"finish checkout Customer_{customer.customer_id} "
+              f"in {round(time.perf_counter() - customer_start_time, ndigits=2)} secs ")
         queue.task_done()
+    # cashier_take['time'] = time.perf_counter() - total_start_time
+    return cashier_take
 
 # we implement the generate_customer method as a factory method for producing customers.
 #
@@ -68,7 +82,7 @@ async def customer_generation(queue: Queue, customers: int):
         for customer in customers:
             print(f"Waiting to put Customer_{customer.customer_id} in line.... ")
             await queue.put(customer)
-            print(f"Customer_{customer.customer_id} put in line...")
+            print(f"Customer_{customer.customer_id} put in line... ")
         customer_count = customer_count + len(customers)
         await asyncio.sleep(.001)
         return customer_count
@@ -76,21 +90,40 @@ async def customer_generation(queue: Queue, customers: int):
 # Finally, we use the main method to initialize the queue, 
 # producer, and consumer, and start all concurrent tasks.
 async def main():
-    CUSTOMER = 2
-    QUEUE = 2
-    CASHIER = 2
+    CUSTOMER = 10
+    QUEUE = 10
+    CASHIER = 5
     customer_queue = Queue(QUEUE)
     customers_start_time = time.perf_counter()
     
     async with asyncio.TaskGroup() as group:
         group = asyncio.create_task(customer_generation(customer_queue, CUSTOMER))
         cashiers = [checkout_customer(customer_queue, i) for i in range(CASHIER)]
-        await asyncio.gather(group, *cashiers)
+        result = await asyncio.gather(group, *cashiers)
 
-    print(f"The supermarket process finished"
+    print(f"The supermarket process finished "
           f"{group.result()} customers "
-          f"in {round(time.perf_counter() - customers_start_time, ndigits=2)} secs")
+          f"in {round(time.perf_counter() - customers_start_time, ndigits=2)} secs ")
     
-    
+    for cashier in result[1:]:
+        if cashier:
+            print(f"The cashier {cashier['id']} "
+                  f"The time {round(cashier['time'],  ndigits=2)} "
+                  f"all customer {cashier['customer']}")
+            
 if __name__ == "__main__":
     asyncio.run(main())
+
+# +--------|------------|------------|-------------------------------------------------------------------------------|-------|
+# Customer |Queue	    | Cashier	 |                             Customer / Time by Cashier                        |Total  |
+# ---------|------------|------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+#          |	        |	         |   C   |   1   |   C   |   2   |   C   |   3   |   C   |   4   |   C   |   5   |       |
+# 	       |	        |	         |-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+# 2	       | 2	        | 2		     |   1   |  2.0  |   1   |  2.0  |       |       |       |       |       |       |2.01   |
+# 3	       | 2	        | 2		     |   2   |  4.0  |   1   |  2.4  |       |       |       |       |       |       |4.01   |
+# 4	       | 2	        | 2	         |   2   |  4.0  |   2   |  4.8  |       |       |       |       |       |       |4.81   |
+# 5	       | 5	        | 5		     |   1   |  2.0  |   1   |  2.4  |   1   |  0.4  |   1   |  3.2  |   1   |  3.6  |3.61   |
+# 10       | 5	        | 5		     |   2   |  4.0  |   1   |  2.4  |   5   |  2.0  |   1   |  3.2  |   1   |  3.6  |4.01   |
+# 10       | 3			| 5          |   2   |  4.0  |   2   |  4.8  |   6   |  2.4  |       |       |       |       |4.81   |
+# 10       | 10			| 5          |   2   |  4.0  |   1   |  2.4  |   5   |  2.0  |   1   |  3.2  |   1   |  3.6  |4.01   |
+# +--------|------------|------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|    
